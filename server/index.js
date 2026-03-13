@@ -18,6 +18,17 @@ app.use(express.json({ limit: '1mb' }));
 // ── Middleware ──────────────────────────────────────────────────
 const normalizeOrigin = (value) => value.trim().replace(/\/$/, '');
 
+const getRequestOrigin = (req) => {
+  const forwardedProto = req.get('x-forwarded-proto');
+  const forwardedHost = req.get('x-forwarded-host');
+  const host = forwardedHost || req.get('host');
+  const protocol = forwardedProto || req.protocol;
+
+  if (!host || !protocol) return '';
+
+  return normalizeOrigin(`${protocol}://${host}`);
+};
+
 const envOrigins = (process.env.CLIENT_URL || '')
   .split(',')
   .map((value) => normalizeOrigin(value))
@@ -31,20 +42,28 @@ const renderOrigins = [
   .map((value) => value && normalizeOrigin(value))
   .filter(Boolean);
 
-const allowedOrigins = [
+const allowedOrigins = new Set([
   'http://localhost:5173',
   'http://localhost:4173',
   ...envOrigins,
   ...renderOrigins,
-].filter(Boolean);
+].filter(Boolean));
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS blocked: ${origin}`));
-  },
-  credentials: true,
+app.use(cors((req, callback) => {
+  const origin = req.get('origin');
+
+  if (!origin) {
+    return callback(null, { origin: true, credentials: true });
+  }
+
+  const normalizedOrigin = normalizeOrigin(origin);
+  const requestOrigin = getRequestOrigin(req);
+  const isAllowed = allowedOrigins.has(normalizedOrigin) || normalizedOrigin === requestOrigin;
+
+  return callback(null, {
+    origin: isAllowed,
+    credentials: true,
+  });
 }));
 
 // ── Routes ──────────────────────────────────────────────────────
