@@ -1,22 +1,21 @@
 services:
-  # ── API (Node/Express) ───────────────────────────────────────────────────────
+  # ── Single Web Service (API + React client served by Express) ────────────────
   - type: web
-    name: moz-scheduler-api
+    name: dondoscheduleing
     env: node
     region: oregon
     plan: free              # upgrade to starter ($7/mo) for always-on
-    rootDir: server
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm --prefix client install && npm --prefix client run build && npm --prefix server install
+    startCommand: npm --prefix server start
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGO_URI
-        sync: false         # fill in Render dashboard
+        sync: false
       - key: JWT_SECRET
-        generateValue: true # Render generates this automatically
+        generateValue: true
       - key: CLIENT_URL
-        sync: false         # set to your static site URL, e.g. https://moz-scheduler.onrender.com
+        sync: false         # set to this service's URL, e.g. https://dondoscheduleing.onrender.com
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -27,20 +26,3 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
-
-  # ── React Client (Static Site) ───────────────────────────────────────────────
-  - type: web
-    name: moz-scheduler
-    env: static
-    region: oregon
-    plan: free
-    rootDir: client
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: VITE_API_URL
-        sync: false         # set to your API URL, e.g. https://moz-scheduler-api.onrender.com
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
