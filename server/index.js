@@ -16,15 +16,26 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 
 // ── Middleware ──────────────────────────────────────────────────
+const normalizeOrigin = (value) => value.trim().replace(/\/$/, '');
+
 const envOrigins = (process.env.CLIENT_URL || '')
   .split(',')
-  .map((value) => value.trim())
+  .map((value) => normalizeOrigin(value))
+  .filter(Boolean);
+
+const renderOrigins = [
+  process.env.RENDER_EXTERNAL_URL,
+  process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '',
+  process.env.RENDER_SERVICE_NAME ? `https://${process.env.RENDER_SERVICE_NAME}.onrender.com` : '',
+]
+  .map((value) => value && normalizeOrigin(value))
   .filter(Boolean);
 
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
   ...envOrigins,
+  ...renderOrigins,
 ].filter(Boolean);
 
 app.use(cors({
