@@ -50,12 +50,34 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 // Serve client app when deployed as a single web service.
 if (process.env.NODE_ENV === 'production') {
   const clientDistPath = path.resolve(__dirname, '../client/dist');
-  app.use(express.static(clientDistPath));
+
+  app.use('/assets', express.static(path.join(clientDistPath, 'assets'), {
+    fallthrough: false,
+    immutable: true,
+    maxAge: '1y',
+  }));
+
+  app.use(express.static(clientDistPath, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store');
+      }
+    },
+  }));
+
+  app.use('/assets', (err, req, res, next) => {
+    if (err) {
+      return res.status(404).json({ message: 'Static asset not found' });
+    }
+    return next();
+  });
 
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ message: 'API route not found' });
     }
+    res.setHeader('Cache-Control', 'no-store');
     return res.sendFile(path.join(clientDistPath, 'index.html'));
   });
 }
